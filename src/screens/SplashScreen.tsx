@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 
-const FALLBACK_TIMEOUT_MS = 4000;
+// The sting itself is ~6s. This is a safety net for a genuinely stuck/broken
+// video (network failure, codec issue), not the expected exit path — normal
+// playback always finishes via onEnded first. It used to be 4000ms, shorter
+// than the video itself, which on real devices (slower decode, cellular
+// fetch of the 4.5MB file before playback can start) cut the sting off
+// partway through every time instead of ever letting it finish naturally.
+const FALLBACK_TIMEOUT_MS = 15000;
 
 interface SplashScreenProps {
   onFinished: () => void;
@@ -22,6 +28,16 @@ export function SplashScreen({ onFinished }: SplashScreenProps) {
     return () => clearTimeout(fallback);
   }, [onFinished]);
 
+  useEffect(() => {
+    // Belt-and-suspenders: the `autoPlay` attribute alone is occasionally
+    // ignored by mobile browsers (backgrounded-tab restore, some WebView
+    // embeddings, low-power mode), so also request playback explicitly once
+    // the element exists. A rejected promise here just means autoplay was
+    // blocked outright — the muted state / tap-for-sound affordance already
+    // covers that, so the failure is intentionally swallowed.
+    videoRef.current?.play().catch(() => {});
+  }, []);
+
   function handleUnmute() {
     const video = videoRef.current;
     if (!video) return;
@@ -37,6 +53,7 @@ export function SplashScreen({ onFinished }: SplashScreenProps) {
         autoPlay
         muted
         playsInline
+        preload="auto"
         onEnded={onFinished}
         onError={onFinished}
         className="h-full w-full object-cover"
