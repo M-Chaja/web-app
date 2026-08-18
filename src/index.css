@@ -1,0 +1,125 @@
+@import "tailwindcss";
+
+/* Design tokens ported exactly from Theme.swift / Color.kt — see
+   M-Chaja_Web_App_Port_Spec.md §4. Do not approximate these from screenshots. */
+@theme {
+  --color-brand-red: #ed2024;
+  --color-brand-yellow: #fbb921;
+  --color-success: #2ea55f;
+
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #6b6b6b;
+  --color-background: #f7f7f7;
+  --color-card: #ffffff;
+  --color-subtle: #f0f0f0;
+  --color-border: #e5e5e5;
+
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Dark mode is a user-toggled app setting (stored in session state), not a media
+   query — see spec §4. The `.dark` class is applied to <html> by the theme hook. */
+.dark {
+  --color-text-primary: #f5f5f5;
+  --color-text-secondary: #a0a0a0;
+  --color-background: #121212;
+  --color-card: #1e1e1e;
+  --color-subtle: #2a2a2a;
+  --color-border: #2c2c2c;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* App shell: phone-shaped on wide viewports so the port still reads as an
+   intentional app, not a stretched mobile page — per spec §10 step 1. */
+#root {
+  display: flex;
+  justify-content: center;
+  min-height: 100dvh;
+}
+
+.app-shell {
+  width: 100%;
+  max-width: 480px;
+  min-height: 100dvh;
+  position: relative;
+  background: var(--color-background);
+  overflow-x: hidden;
+}
+
+@media (min-width: 481px) {
+  .app-shell {
+    box-shadow: 0 0 60px rgba(0, 0, 0, 0.12);
+  }
+}
+
+/* OTP digit-fill spark — see OtpScreen.tsx. */
+@keyframes spark {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+/* Spin & Win wheel rim dots twinkle independently, like string lights — see
+   SpinScreen.tsx's glowingDots. Staggered per-dot animation-delay approximates
+   the native per-dot sine-phase animation. */
+@keyframes wheel-twinkle {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Rings that expand from the hub out to the rim while the wheel spins — see
+   SpinScreen.tsx's spinPulses. */
+@keyframes wheel-spin-pulse {
+  0% {
+    width: 60px;
+    height: 60px;
+    opacity: 0.85;
+  }
+  100% {
+    width: var(--wheel-pulse-max, 312px);
+    height: var(--wheel-pulse-max, 312px);
+    opacity: 0;
+  }
+}
+
+/* Single jolt of electricity from hub to rim right before the win reveal —
+   see SpinScreen.tsx's electricPulse. */
+@keyframes wheel-electric-pulse {
+  0% {
+    width: 60px;
+    height: 60px;
+    opacity: 1;
+  }
+  100% {
+    width: var(--wheel-pulse-max, 312px);
+    height: var(--wheel-pulse-max, 312px);
+    opacity: 0;
+  }
+}
