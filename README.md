@@ -1,32 +1,48 @@
-# React + TypeScript + Vite
+# M-Chaja Web
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The customer-facing M-Chaja web app — deployed at `app.m-chaja.com`. A port of the
+native iOS/Android apps (see `M-Chaja_Web_App_Port_Spec.md` for the full spec), gated
+to mobile browsers only. Vite + React + TypeScript + React Router + Tailwind CSS v4,
+against a mocked API layer (`src/lib/mockApi.ts`) until the real backend at
+`admin.m-chaja.com/api/*` is live.
 
-Currently, two official plugins are available:
+## Local development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+cp .env.example .env.local   # fill in VITE_GOOGLE_MAPS_API_KEY
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+The app only renders past the splash/onboarding on a real mobile browser or viewport +
+user-agent — see `src/hooks/useIsMobile.ts` and `src/components/DesktopBlockedScreen.tsx`.
+Desktop shows a static "use your phone" screen instead of the app.
+
+## Build
+
+```bash
+npm run build      # tsc -b && vite build, output in dist/
+npm run preview    # serve the production build locally
+```
+
+## Deployment (Vercel)
+
+This app is a fully standalone deployment — it does not share a host or process with
+the admin dashboard / backend at `admin.m-chaja.com`.
+
+1. Push this repo to GitHub, import it in the Vercel dashboard (framework preset: Vite).
+2. Set the `VITE_GOOGLE_MAPS_API_KEY` environment variable in the Vercel project
+   settings (see `.env.example`) — do not commit the real key.
+3. Attach the `app.m-chaja.com` custom domain in the Vercel project's Domains settings,
+   then point its DNS at Vercel per Vercel's instructions.
+4. In Google Cloud Console, add `app.m-chaja.com/*` (and any Vercel preview domains you
+   want maps to work on) to the Maps JS API key's HTTP referrer allowlist — without
+   this the map silently falls back to a static placeholder (see
+   `src/components/map/PlaceholderMapLayer.tsx` / `MapErrorBoundary.tsx`).
+
+`vercel.json` already handles the SPA rewrite (`/* -> /index.html`) this app needs
+since routing is client-side (React Router) — without it, deep links like
+`/wallet` would 404 on refresh.
+
+Once the real backend exists, requests to `https://admin.m-chaja.com/api/*` will need
+CORS configured there to allow `app.m-chaja.com` as an origin.
