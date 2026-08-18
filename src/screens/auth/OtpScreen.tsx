@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { BackButton } from "../../components/ui/BackButton";
 import { MChajaLogo } from "../../components/ui/MChajaLogo";
 import { PillButton } from "../../components/ui/PillButton";
@@ -12,7 +13,34 @@ import { useT } from "../../lib/i18n";
 const DIGIT_COUNT = 4;
 const MAX_RESEND_ATTEMPTS = 3;
 const RESEND_COOLDOWN_S = 30;
-const BOX_SIZE = { width: 60, height: 64 };
+const BOX_WIDTH_MAX = 60;
+const BOX_WIDTH_MIN = 52;
+const BOX_GAP = 14;
+const BOX_HORIZONTAL_RESERVED_PX = 48; // screen's px-6 padding, both sides
+const BOX_ASPECT_RATIO = 64 / 60;
+
+/** Shrinks the OTP boxes just enough to fit the narrowest phones (~320px)
+ *  without overflowing — same pattern as SpinScreen's responsive wheel. */
+function useResponsiveBoxWidth(): number {
+  const [boxWidth, setBoxWidth] = useState(BOX_WIDTH_MAX);
+
+  useEffect(() => {
+    function measure() {
+      const available = window.innerWidth - BOX_HORIZONTAL_RESERVED_PX - BOX_GAP * (DIGIT_COUNT - 1);
+      const fitted = Math.floor(available / DIGIT_COUNT);
+      setBoxWidth(Math.max(BOX_WIDTH_MIN, Math.min(BOX_WIDTH_MAX, fitted)));
+    }
+    measure();
+    window.addEventListener("resize", measure);
+    window.addEventListener("orientationchange", measure);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("orientationchange", measure);
+    };
+  }, []);
+
+  return boxWidth;
+}
 
 interface OtpScreenProps {
   phone: string;
@@ -23,6 +51,8 @@ interface OtpScreenProps {
 /** Ported from OtpView.swift / OtpScreen.kt — see spec §4/§5. */
 export function OtpScreen({ phone, onVerified, onBack }: OtpScreenProps) {
   const t = useT();
+  const boxWidth = useResponsiveBoxWidth();
+  const boxHeight = Math.round(boxWidth * BOX_ASPECT_RATIO);
   const [code, setCode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +125,7 @@ export function OtpScreen({ phone, onVerified, onBack }: OtpScreenProps) {
           {isSuccess ? t("auth.otpVerifiedSubtitle") : t("auth.otpSubtitle", { phone })}
         </p>
 
-        <div className="relative py-1" style={{ width: BOX_SIZE.width * DIGIT_COUNT + 14 * (DIGIT_COUNT - 1), height: BOX_SIZE.height }}>
+        <div className="relative py-1" style={{ width: boxWidth * DIGIT_COUNT + BOX_GAP * (DIGIT_COUNT - 1), height: boxHeight }}>
           <div
             className="flex items-center justify-center transition-all duration-500"
             style={{ opacity: isSuccess ? 0 : 1, transform: isSuccess ? "scale(0.8)" : "scale(1)" }}
@@ -121,9 +151,11 @@ export function OtpScreen({ phone, onVerified, onBack }: OtpScreenProps) {
                     showSpark={sparkIndex === i}
                     pulse={pulse}
                     seedBase={i * 97}
+                    boxWidth={boxWidth}
+                    boxHeight={boxHeight}
                   />
                   {i < DIGIT_COUNT - 1 && (
-                    <div style={{ width: 14, height: 16 }}>
+                    <div style={{ width: BOX_GAP, height: 16 }}>
                       {code.length === DIGIT_COUNT && <ElectricConnector color="var(--color-brand-yellow)" seedBase={i * 53} />}
                     </div>
                   )}
@@ -173,7 +205,15 @@ export function OtpScreen({ phone, onVerified, onBack }: OtpScreenProps) {
       </div>
 
       <p className="px-10 pb-4 text-center text-xs font-semibold text-white/70">
-        By verifying you agree to the Terms, Conditions &amp; Privacy Policy of M-Chaja™.
+        By verifying you agree to the{" "}
+        <Link to="/profile/terms" className="underline">
+          Terms, Conditions
+        </Link>{" "}
+        &amp;{" "}
+        <Link to="/profile/privacy" className="underline">
+          Privacy Policy
+        </Link>{" "}
+        of M-Chaja™.
       </p>
     </div>
   );
@@ -185,23 +225,25 @@ interface OtpDigitBoxProps {
   showSpark: boolean;
   pulse: boolean;
   seedBase: number;
+  boxWidth: number;
+  boxHeight: number;
 }
 
-function OtpDigitBox({ digit, isActive, showSpark, pulse, seedBase }: OtpDigitBoxProps) {
+function OtpDigitBox({ digit, isActive, showSpark, pulse, seedBase, boxWidth, boxHeight }: OtpDigitBoxProps) {
   const isFilled = digit !== undefined;
   return (
     <div
       className="relative flex items-center justify-center rounded-2xl transition-transform duration-150"
       style={{
-        width: BOX_SIZE.width,
-        height: BOX_SIZE.height,
+        width: boxWidth,
+        height: boxHeight,
         backgroundColor: "rgba(255,255,255,0.06)",
         border: `1px solid ${isFilled ? "rgba(251,185,33,0.4)" : `rgba(255,255,255,${isActive ? 0.9 : 0.35})`}`,
         transform: isFilled && pulse ? "scale(1.06)" : "scale(1)",
         boxShadow: isFilled ? `0 0 ${14 + (pulse ? 10 : 0)}px rgba(251,185,33,${0.5 + (pulse ? 0.3 : 0)})` : "none",
       }}
     >
-      {isFilled && <ElectricBorder width={BOX_SIZE.width} height={BOX_SIZE.height} cornerRadius={16} color="var(--color-brand-yellow)" seedBase={seedBase} />}
+      {isFilled && <ElectricBorder width={boxWidth} height={boxHeight} cornerRadius={16} color="var(--color-brand-yellow)" seedBase={seedBase} />}
       {digit !== undefined && <span className="text-2xl font-semibold text-white">{digit}</span>}
       {showSpark && (
         <svg

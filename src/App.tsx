@@ -228,22 +228,12 @@ function MobileApp() {
             </RequireAuth>
           }
         />
-        <Route
-          path="/profile/terms"
-          element={
-            <RequireAuth>
-              <TermsRoute />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/profile/privacy"
-          element={
-            <RequireAuth>
-              <PrivacyRoute />
-            </RequireAuth>
-          }
-        />
+        {/* Public (no RequireAuth): the OTP screen links here before the
+            user is logged in ("agree to the Terms & Privacy Policy"), and
+            legal pages are conventionally accessible without an account
+            anyway. */}
+        <Route path="/profile/terms" element={<TermsRoute />} />
+        <Route path="/profile/privacy" element={<PrivacyRoute />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

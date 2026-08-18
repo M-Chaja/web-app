@@ -7,9 +7,13 @@ import { AppSession } from "../lib/session";
 import { SPIN_PRIZES, weightedRandomPrizeIndex } from "../lib/spinPrizes";
 import { useT } from "../lib/i18n";
 
-const WHEEL_SIZE = 300;
-const RING_SIZE = WHEEL_SIZE + 12;
-const HUB_SIZE = 60;
+// The wheel's on-screen size adapts to viewport width (see useResponsiveWheelSize
+// below) so it doesn't overflow narrow phones — everything here is either a
+// max/min bound or a ratio of that dynamic size, not a fixed pixel value.
+const WHEEL_SIZE_MAX = 300;
+const WHEEL_SIZE_MIN = 210;
+const WHEEL_HORIZONTAL_RESERVED_PX = 48 + 44; // screen's px-6 padding + ring overhang
+const HUB_SIZE_RATIO = 60 / 300;
 const SPIN_DURATION_MS = 4000;
 const ELECTRIC_PULSE_MS = 550;
 const SEGMENT_ANGLE = 360 / SPIN_PRIZES.length;
@@ -27,16 +31,41 @@ const SEGMENT_STYLE = [
 
 const wheelGradient = `conic-gradient(${SPIN_PRIZES.map((_, i) => `${SEGMENT_STYLE[i].bg} ${i * SEGMENT_ANGLE}deg ${(i + 1) * SEGMENT_ANGLE}deg`).join(", ")})`;
 
-function labelPosition(center: number) {
+function labelPosition(center: number, wheelSize: number) {
   const rad = ((center - 90) * Math.PI) / 180;
-  const r = (WHEEL_SIZE / 2) * 0.62;
-  return { x: WHEEL_SIZE / 2 + r * Math.cos(rad), y: WHEEL_SIZE / 2 + r * Math.sin(rad) };
+  const r = (wheelSize / 2) * 0.62;
+  return { x: wheelSize / 2 + r * Math.cos(rad), y: wheelSize / 2 + r * Math.sin(rad) };
+}
+
+/** Clamps the wheel to what actually fits the viewport width, recomputed on
+ *  resize/orientation change — see useIsMobile.ts for the same pattern. */
+function useResponsiveWheelSize(): number {
+  const [wheelSize, setWheelSize] = useState(WHEEL_SIZE_MAX);
+
+  useEffect(() => {
+    function measure() {
+      const available = window.innerWidth - WHEEL_HORIZONTAL_RESERVED_PX;
+      setWheelSize(Math.max(WHEEL_SIZE_MIN, Math.min(WHEEL_SIZE_MAX, available)));
+    }
+    measure();
+    window.addEventListener("resize", measure);
+    window.addEventListener("orientationchange", measure);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("orientationchange", measure);
+    };
+  }, []);
+
+  return wheelSize;
 }
 
 /** Ported from SpinWheelView.swift / SpinScreen.kt — see spec §4/§5/§7 rule 3. */
 export function SpinScreen() {
   const t = useT();
   const navigate = useNavigate();
+  const wheelSize = useResponsiveWheelSize();
+  const ringSize = wheelSize + 12;
+  const hubSize = Math.round(wheelSize * HUB_SIZE_RATIO);
   const [rotation, setRotation] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
   const [resultIndex, setResultIndex] = useState<number | null>(null);
@@ -106,22 +135,22 @@ export function SpinScreen() {
           <p className="text-sm font-medium text-text-secondary">{t("points.spinSubtitle")}</p>
         </div>
 
-        <div className="relative flex items-center justify-center" style={{ width: WHEEL_SIZE + 44, height: WHEEL_SIZE + 44 }}>
-          <div className="absolute rounded-full" style={{ width: WHEEL_SIZE + 44, height: WHEEL_SIZE + 44, backgroundColor: "#2a2a2a" }} />
+        <div className="relative flex items-center justify-center" style={{ width: wheelSize + 44, height: wheelSize + 44 }}>
+          <div className="absolute rounded-full" style={{ width: wheelSize + 44, height: wheelSize + 44, backgroundColor: "#2a2a2a" }} />
 
-          <GlowingDots />
+          <GlowingDots wheelSize={wheelSize} />
 
           <div
             className="absolute rounded-full"
-            style={{ width: RING_SIZE, height: RING_SIZE, border: "4px solid rgba(251,185,33,0.5)" }}
+            style={{ width: ringSize, height: ringSize, border: "4px solid rgba(251,185,33,0.5)" }}
           />
-          <WheelElectricRim diameter={RING_SIZE} color="var(--color-brand-yellow)" />
+          <WheelElectricRim diameter={ringSize} color="var(--color-brand-yellow)" />
 
           <div
             className="absolute overflow-hidden rounded-full"
             style={{
-              width: WHEEL_SIZE,
-              height: WHEEL_SIZE,
+              width: wheelSize,
+              height: wheelSize,
               background: wheelGradient,
               transform: `rotate(${rotation}deg)`,
               transition: isSpinning ? `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.16, 1, 0.3, 1)` : "none",
@@ -130,7 +159,7 @@ export function SpinScreen() {
             {SPIN_PRIZES.map((prize, i) => {
               const start = i * SEGMENT_ANGLE;
               const center = start + SEGMENT_ANGLE / 2;
-              const { x, y } = labelPosition(center);
+              const { x, y } = labelPosition(center, wheelSize);
               const onScreenAngle = ((rotation + center) % 360 + 360) % 360;
               const textRotation = onScreenAngle > 90 && onScreenAngle < 270 ? center + 180 : center;
               return (
@@ -150,7 +179,7 @@ export function SpinScreen() {
             })}
           </div>
 
-          {isSpinning && <SpinPulses />}
+          {isSpinning && <SpinPulses ringSize={ringSize} />}
 
           {electricPulse && (
             <div
@@ -159,7 +188,7 @@ export function SpinScreen() {
                 {
                   borderColor: "var(--color-brand-yellow)",
                   animation: `wheel-electric-pulse ${ELECTRIC_PULSE_MS}ms ease-out forwards`,
-                  "--wheel-pulse-max": `${RING_SIZE}px`,
+                  "--wheel-pulse-max": `${ringSize}px`,
                 } as CSSProperties
               }
             />
@@ -168,8 +197,8 @@ export function SpinScreen() {
           <div
             className="absolute flex items-center justify-center rounded-full"
             style={{
-              width: HUB_SIZE,
-              height: HUB_SIZE,
+              width: hubSize,
+              height: hubSize,
               backgroundColor: "var(--color-brand-yellow)",
               border: "3px solid #ffffff",
               boxShadow: `0 0 ${isSpinning || electricPulse ? 16 : 4}px var(--color-brand-yellow), 0 2px 4px rgba(0,0,0,0.25)`,
@@ -236,7 +265,7 @@ export function SpinScreen() {
   );
 }
 
-function GlowingDots() {
+function GlowingDots({ wheelSize }: { wheelSize: number }) {
   const dots = Array.from({ length: 24 });
   return (
     <div className="absolute" style={{ width: 1, height: 1 }}>
@@ -249,7 +278,7 @@ function GlowingDots() {
             height: 6,
             backgroundColor: i % 2 === 0 ? "var(--color-brand-yellow)" : "var(--color-brand-red)",
             boxShadow: `0 0 8px ${i % 2 === 0 ? "var(--color-brand-yellow)" : "var(--color-brand-red)"}`,
-            transform: `rotate(${i * 15}deg) translateY(${-(WHEEL_SIZE + 30) / 2}px)`,
+            transform: `rotate(${i * 15}deg) translateY(${-(wheelSize + 30) / 2}px)`,
             animation: `wheel-twinkle 2.5s ease-in-out infinite`,
             animationDelay: `${i * 0.28}s`,
           }}
@@ -259,7 +288,7 @@ function GlowingDots() {
   );
 }
 
-function SpinPulses() {
+function SpinPulses({ ringSize }: { ringSize: number }) {
   const rings = [0, 1, 2];
   return (
     <>
@@ -272,7 +301,7 @@ function SpinPulses() {
               borderColor: "var(--color-brand-yellow)",
               animation: "wheel-spin-pulse 1.43s linear infinite",
               animationDelay: `${i * 0.476}s`,
-              "--wheel-pulse-max": `${RING_SIZE}px`,
+              "--wheel-pulse-max": `${ringSize}px`,
             } as CSSProperties
           }
         />

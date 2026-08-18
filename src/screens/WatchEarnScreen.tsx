@@ -77,8 +77,7 @@ export function WatchEarnScreen() {
           type="button"
           onClick={watchVideo}
           disabled={!canWatch}
-          className="relative flex items-center justify-center overflow-hidden rounded-[28px] bg-black disabled:opacity-70"
-          style={{ width: 300, height: 300 }}
+          className="relative flex aspect-square w-full max-w-[300px] items-center justify-center overflow-hidden rounded-[28px] bg-black disabled:opacity-70"
         >
           <video src="/splash.mp4" muted playsInline loop autoPlay className="h-full w-full object-cover opacity-60" />
           <div className="absolute flex flex-col items-center gap-2">
