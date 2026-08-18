@@ -21,7 +21,7 @@ class AppSessionImpl {
    *  re-prompt, matching typical banking-app "app lock" behavior. */
   isUnlocked = new Store<boolean>(!this.biometricEnabled.get());
   hasCompletedOnboarding = jsonStore<boolean>("has_completed_onboarding", false);
-  darkModeEnabled = jsonStore<boolean>("dark_mode_enabled", false);
+  darkModeEnabled = jsonStore<boolean>("dark_mode_enabled", true);
   chajaPoints = jsonStore<number>("chaja_points", 0);
 
   private spinsUsedInWindow = jsonStore<number>("spins_used_in_window", 0);
