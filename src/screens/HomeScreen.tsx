@@ -4,7 +4,7 @@ import { MapLayer } from "../components/map/MapLayer";
 import { StationCard } from "../components/StationCard";
 import { MChajaLogo } from "../components/ui/MChajaLogo";
 import { useActiveRental, useStations } from "../lib/mockApi";
-import { useSessionUser } from "../lib/session";
+import { useIsLoggedIn, useSessionUser } from "../lib/session";
 import { useT } from "../lib/i18n";
 import type { Station } from "../lib/models";
 
@@ -26,6 +26,7 @@ export function HomeScreen() {
   const t = useT();
   const navigate = useNavigate();
   const user = useSessionUser();
+  const isLoggedIn = useIsLoggedIn();
   const stations = useStations();
   const activeRental = useActiveRental();
   const hasActiveRental = activeRental !== undefined;
@@ -45,6 +46,10 @@ export function HomeScreen() {
 
   function goScan() {
     if (hasActiveRental) return;
+    if (!isLoggedIn) {
+      navigate("/signup", { state: { returnTo: "/scan" } });
+      return;
+    }
     navigate("/scan");
   }
 

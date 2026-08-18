@@ -4,6 +4,7 @@
 import { Store, useStore } from "./store";
 import type { Rental, Station, User, WalletTransaction } from "./models";
 import { createUser } from "./models";
+import { HOURLY_RATE_TZS } from "./billing";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -186,8 +187,16 @@ class MockApiImpl {
       status: "active",
       startedAt: new Date().toISOString(),
       batteryPercent: 96,
+      prepaidTzs: HOURLY_RATE_TZS,
     };
     this.rentals.set((prev) => [rental, ...prev]);
+    // The first hour is deducted immediately when the cabinet releases the
+    // power bank — any additional hours are settled at return time.
+    this.walletBalanceTzs.set((prev) => prev - HOURLY_RATE_TZS);
+    this.transactions.set((prev) => [
+      { id: `tx-${prev.length + 1}`, type: "rental_charge", amountTzs: -HOURLY_RATE_TZS, createdAt: new Date().toISOString(), description: `Rental at ${stationName} (1st hour)` },
+      ...prev,
+    ]);
     return rental;
   }
 
@@ -195,12 +204,14 @@ class MockApiImpl {
     await sleep(800);
     const rental = this.rentals.get().find((r) => r.id === rentalId);
     if (!rental) return;
+    // The first hour was already deducted at rental start — only settle the balance.
+    const remainingChargeTzs = Math.max(0, totalChargedTzs - (rental.prepaidTzs ?? 0));
     this.rentals.set((prev) =>
       prev.map((r) =>
         r.id === rentalId ? { ...r, status: "completed", endedAt: new Date().toISOString(), totalChargedTzs } : r,
       ),
     );
-    this.walletBalanceTzs.set((prev) => prev - totalChargedTzs);
+    this.walletBalanceTzs.set((prev) => prev - remainingChargeTzs);
     this.stations.set((prev) =>
       prev.map((s) => (s.id === rental.stationId ? { ...s, availableCount: Math.min(s.totalSlots, s.availableCount + 1) } : s)),
     );

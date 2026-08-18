@@ -3,6 +3,7 @@ import { BackButton } from "../components/ui/BackButton";
 import { PillButton } from "../components/ui/PillButton";
 import { SlotDots } from "../components/SlotDots";
 import { MockApi, useActiveRental, useStations } from "../lib/mockApi";
+import { useIsLoggedIn } from "../lib/session";
 import { useT } from "../lib/i18n";
 import { stationPhotoSrc } from "../lib/stationImages";
 
@@ -22,6 +23,15 @@ export function StationDetailScreen() {
   useStations();
   const station = id ? MockApi.station(id) : undefined;
   const hasActiveRental = useActiveRental() !== undefined;
+  const isLoggedIn = useIsLoggedIn();
+
+  function goScan() {
+    if (!isLoggedIn) {
+      navigate("/signup", { state: { returnTo: "/scan" } });
+      return;
+    }
+    navigate("/scan");
+  }
 
   if (!station) {
     return (
@@ -99,7 +109,7 @@ export function StationDetailScreen() {
           {t("station.setRoute")}
         </a>
         <div className="flex-1">
-          <PillButton label={t("station.scanQRCode")} disabled={isScanDisabled} onClick={() => navigate("/scan")} />
+          <PillButton label={t("station.scanQRCode")} disabled={isScanDisabled} onClick={goScan} />
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BrowserQRCodeReader, type IScannerControls } from "@zxing/browser";
-import { HOURLY_RATE_TZS } from "../lib/billing";
+import { MINIMUM_DEPOSIT_TZS } from "../lib/billing";
 import { MockApi, useActiveRental, useStations } from "../lib/mockApi";
 import { useT } from "../lib/i18n";
 
@@ -21,6 +21,8 @@ export function ScanScreen() {
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cameraUnavailable, setCameraUnavailable] = useState(false);
+  const [pendingStationId, setPendingStationId] = useState<string | null>(null);
+  const [isToppingUp, setIsToppingUp] = useState(false);
   const hasHandledRef = useRef(false);
 
   useEffect(() => {
@@ -57,16 +59,36 @@ export function ScanScreen() {
       setError(t("scan.unrecognizedCode"));
       return;
     }
-    if (MockApi.walletBalanceTzs.get() < HOURLY_RATE_TZS) {
-      setError(t("scan.balanceTooLow"));
+    hasHandledRef.current = true;
+    if (MockApi.walletBalanceTzs.get() < MINIMUM_DEPOSIT_TZS) {
+      setError(null);
+      setPendingStationId(stationId);
       return;
     }
-    hasHandledRef.current = true;
+    beginRental(stationId);
+  }
+
+  function beginRental(stationId: string) {
+    setPendingStationId(null);
     setError(null);
     setIsStarting(true);
     MockApi.startRental(stationId).then((rental) => {
       navigate(`/rental/active/${rental.id}`, { replace: true });
     });
+  }
+
+  async function handleTopUp() {
+    if (!pendingStationId) return;
+    setIsToppingUp(true);
+    const shortfallTzs = Math.max(0, MINIMUM_DEPOSIT_TZS - MockApi.walletBalanceTzs.get());
+    if (shortfallTzs > 0) await MockApi.topUp(shortfallTzs);
+    setIsToppingUp(false);
+    beginRental(pendingStationId);
+  }
+
+  function cancelTopUp() {
+    setPendingStationId(null);
+    hasHandledRef.current = false;
   }
 
   if (activeRental) return null;
@@ -116,6 +138,29 @@ export function ScanScreen() {
       >
         {t("common.close")}
       </button>
+
+      {pendingStationId && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 px-8">
+          <div className="flex w-full flex-col items-center gap-3 rounded-2xl bg-card p-6 text-center">
+            <p className="text-lg font-bold text-text-primary">{t("scan.balanceTooLow")}</p>
+            <p className="text-sm text-text-secondary">
+              {t("wallet.minimumDepositNotice", { amount: MINIMUM_DEPOSIT_TZS.toLocaleString() })}
+            </p>
+            <button
+              type="button"
+              onClick={handleTopUp}
+              disabled={isToppingUp}
+              className="mt-1 w-full rounded-full py-3.5 font-bold text-white disabled:opacity-60"
+              style={{ backgroundColor: "var(--color-brand-red)" }}
+            >
+              {isToppingUp ? "…" : t("wallet.topUp")}
+            </button>
+            <button type="button" onClick={cancelTopUp} className="rounded-full py-2 font-semibold text-text-secondary">
+              {t("common.cancel")}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

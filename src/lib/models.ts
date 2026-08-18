@@ -66,4 +66,6 @@ export interface Rental {
   endedAt?: string;
   totalChargedTzs?: number;
   batteryPercent?: number;
+  /** Charged upfront at rental start (the first hour) — see MockApi.startRental. */
+  prepaidTzs?: number;
 }

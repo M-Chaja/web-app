@@ -35,11 +35,12 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return children;
 }
 
+/** Launching the app always lands on the home map, whether or not the user is
+ *  logged in — login only happens when an action actually requires it (see
+ *  RequireAuth below and the "Scan to Rent" flow's returnTo state). */
 function RootRedirect() {
   const hasCompletedOnboarding = useHasCompletedOnboarding();
-  const isLoggedIn = useIsLoggedIn();
   if (!hasCompletedOnboarding) return <Navigate to="/onboarding" replace />;
-  if (!isLoggedIn) return <Navigate to="/signup" replace />;
   return <Navigate to="/home" replace />;
 }
 
@@ -49,7 +50,7 @@ function OnboardingRoute() {
     <OnboardingScreen
       onFinished={() => {
         AppSession.hasCompletedOnboarding.set(true);
-        navigate("/signup", { replace: true });
+        navigate("/home", { replace: true });
       }}
     />
   );
@@ -57,9 +58,11 @@ function OnboardingRoute() {
 
 function PhoneEntryRoute() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = (location.state as { returnTo?: string } | null)?.returnTo;
   return (
     <PhoneEntryScreen
-      onContinue={(fullNumber) => navigate("/signup/otp", { state: { phone: fullNumber } })}
+      onContinue={(fullNumber) => navigate("/signup/otp", { state: { phone: fullNumber, returnTo } })}
       onBack={() => navigate(-1)}
     />
   );
@@ -68,7 +71,9 @@ function PhoneEntryRoute() {
 function OtpRoute() {
   const navigate = useNavigate();
   const location = useLocation();
-  const phone = (location.state as { phone?: string } | null)?.phone;
+  const state = location.state as { phone?: string; returnTo?: string } | null;
+  const phone = state?.phone;
+  const returnTo = state?.returnTo;
 
   if (!phone) return <Navigate to="/signup" replace />;
 
@@ -78,7 +83,7 @@ function OtpRoute() {
       onBack={() => navigate(-1)}
       onVerified={(user) => {
         AppSession.login(user);
-        navigate("/home", { replace: true });
+        navigate(returnTo ?? "/home", { replace: true });
       }}
     />
   );
@@ -128,17 +133,35 @@ function MobileApp() {
         <Route path="/onboarding" element={<OnboardingRoute />} />
         <Route path="/signup" element={<PhoneEntryRoute />} />
         <Route path="/signup/otp" element={<OtpRoute />} />
-        <Route
-          element={
-            <RequireAuth>
-              <MainTabLayout />
-            </RequireAuth>
-          }
-        >
+        {/* Home is public — see RootRedirect above. The other three tabs
+            carry personal financial/points data, so they stay gated
+            individually while still sharing the tab layout with Home. */}
+        <Route element={<MainTabLayout />}>
           <Route path="/home" element={<HomeScreen />} />
-          <Route path="/wallet" element={<WalletScreen />} />
-          <Route path="/activity" element={<RentalHistoryScreen />} />
-          <Route path="/points" element={<PointsScreen />} />
+          <Route
+            path="/wallet"
+            element={
+              <RequireAuth>
+                <WalletScreen />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/activity"
+            element={
+              <RequireAuth>
+                <RentalHistoryScreen />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/points"
+            element={
+              <RequireAuth>
+                <PointsScreen />
+              </RequireAuth>
+            }
+          />
         </Route>
         <Route
           path="/wallet/history"
@@ -164,14 +187,10 @@ function MobileApp() {
             </RequireAuth>
           }
         />
-        <Route
-          path="/station/:id"
-          element={
-            <RequireAuth>
-              <StationDetailScreen />
-            </RequireAuth>
-          }
-        />
+        {/* Public: the cabinet's physical QR code encodes this URL directly,
+            so scanning it with the phone's camera (outside the app) must
+            load the station's details before the user is ever logged in. */}
+        <Route path="/station/:id" element={<StationDetailScreen />} />
         <Route
           path="/scan"
           element={
