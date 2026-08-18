@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BackButton } from "../components/ui/BackButton";
+import { BottomNav } from "../components/BottomNav";
 import { AppSession } from "../lib/session";
 import { useT } from "../lib/i18n";
 
@@ -116,6 +117,8 @@ export function WatchEarnScreen() {
           )}
         </div>
       </div>
+
+      <BottomNav />
 
       {isWatching && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black">

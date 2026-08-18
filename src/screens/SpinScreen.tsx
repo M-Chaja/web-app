@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { BackButton } from "../components/ui/BackButton";
+import { BottomNav } from "../components/BottomNav";
 import { WheelElectricRim } from "../components/WheelElectricRim";
 import { AppSession } from "../lib/session";
 import { SPIN_PRIZES, weightedRandomPrizeIndex } from "../lib/spinPrizes";
@@ -218,6 +219,8 @@ export function SpinScreen() {
           )}
         </div>
       </div>
+
+      <BottomNav />
 
       {resultIndex !== null && (
         <ResultModal
