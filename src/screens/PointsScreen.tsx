@@ -13,7 +13,7 @@ export function PointsScreen() {
   const greetingKey = hour < 12 ? "points.greetingMorning" : hour < 17 ? "points.greetingAfternoon" : "points.greetingEvening";
 
   return (
-    <div className="flex h-full min-h-dvh flex-col bg-background">
+    <div className="flex h-full flex-col bg-background">
       <div className="px-5 pb-4 pt-8">
         <div className="flex flex-col gap-3.5 rounded-3xl p-[22px]" style={{ backgroundColor: "var(--color-brand-red)" }}>
           <div className="flex items-start gap-3.5">

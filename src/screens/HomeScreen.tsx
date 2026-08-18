@@ -98,7 +98,7 @@ export function HomeScreen() {
   }
 
   return (
-    <div className="relative flex h-full min-h-dvh flex-col overflow-hidden bg-background">
+    <div className="relative flex h-full flex-col overflow-hidden bg-background">
       <div className="absolute inset-0">
         <MapLayer
           stations={stations}
@@ -143,7 +143,7 @@ export function HomeScreen() {
       {/* Peek: horizontally swipeable station carousel floating over the map —
           same translateX-slide technique as OnboardingScreen. Swipe up to expand. */}
       <div
-        className="absolute inset-x-0 bottom-0 z-10 px-5 pb-8 pt-4 transition-all duration-300 ease-out"
+        className="absolute inset-x-0 bottom-0 z-10 px-3.5 pb-14 pt-4 transition-all duration-300 ease-out"
         style={{
           opacity: sheetState === "peek" ? 1 : 0,
           transform: sheetState === "peek" ? "translateY(0)" : "translateY(24px)",
@@ -155,7 +155,7 @@ export function HomeScreen() {
         <div className="overflow-hidden">
           <div className="flex transition-transform duration-300 ease-out" style={{ transform: `translateX(-${activeIndex * 100}%)` }}>
             {stations.map((station) => (
-              <div key={station.id} className="w-full shrink-0">
+              <div key={station.id} className="w-full shrink-0 px-1.5">
                 <StationCard station={station} onScan={goScan} onTap={() => goStation(station)} compact isDisabledForActiveRental={hasActiveRental} />
               </div>
             ))}
